@@ -1,0 +1,67 @@
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder
+from sklearn.impute import SimpleImputer
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+from xgboost import XGBClassifier
+from sklearn.preprocessing import StandardScaler
+
+# Load the data
+data = pd.read_csv("/content/train_u6lujuX_CVtuZ9i.csv")
+
+# Drop Loan_ID and handle missing values
+data = data.drop(columns=['Loan_ID'])
+
+# Separate categorical and numerical columns
+categorical_cols = data.select_dtypes(include='object').columns
+numerical_cols = data.select_dtypes(include=['int64', 'float64']).columns
+
+# Impute missing values
+cat_imputer = SimpleImputer(strategy='most_frequent')
+num_imputer = SimpleImputer(strategy='mean')
+
+data[categorical_cols] = cat_imputer.fit_transform(data[categorical_cols])
+data[numerical_cols] = num_imputer.fit_transform(data[numerical_cols])
+
+# Encode categorical variables
+label_encoders = {}
+for col in categorical_cols:
+    le = LabelEncoder()
+    data[col] = le.fit_transform(data[col])
+    label_encoders[col] = le
+
+# Split features and target
+X = data.drop(columns=['Loan_Status'])
+y = data['Loan_Status']
+
+# Encode target variable
+y = LabelEncoder().fit_transform(y)  # Y: 1 if 'Y', 0 if 'N'
+
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
+
+
+X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
+
+# Train model
+model = LogisticRegression(max_iter=1000)
+model.fit(X_train, y_train)
+
+
+# Evaluate model
+y_pred = model.predict(X_test)
+print("Accuracy:", accuracy_score(y_test, y_pred))
+print("Confusion Matrix:\n", confusion_matrix(y_test, y_pred))
+print("Classification Report:\n", classification_report(y_test, y_pred))
+xgb_model = XGBClassifier(eval_metric='logloss', random_state=42)
+
+xgb_model.fit(X_train, y_train)
+
+# Evaluate XGBoost model
+y_pred_xgb = xgb_model.predict(X_test)
+
+print("XGBoost Accuracy:", accuracy_score(y_test, y_pred_xgb))
+print("XGBoost Confusion Matrix:\n", confusion_matrix(y_test, y_pred_xgb))
+print("XGBoost Classification Report:\n", classification_report(y_test, y_pred_xgb))
